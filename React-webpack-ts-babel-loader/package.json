@@ -1,0 +1,49 @@
+{
+  "name": "react-demo-webpack-ts",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "cross-env NODE_ENV=development webpack",
+    "dev": "cross-env NODE_ENV=development webpack-dev-server --progress --color --hot"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@babel/core": "^7.4.0",
+    "@babel/plugin-proposal-class-properties": "^7.4.0",
+    "@babel/plugin-proposal-decorators": "^7.4.0",
+    "@babel/plugin-proposal-object-rest-spread": "^7.4.0",
+    "@babel/preset-env": "^7.4.2",
+    "@babel/preset-react": "^7.0.0",
+    "@babel/preset-typescript": "^7.3.3",
+    "@types/react": "^16.8.8",
+    "@types/react-dom": "^16.8.3",
+    "@types/react-router": "^4.4.5",
+    "babel-loader": "^8.0.5",
+    "babel-plugin-object-rest-spread": "0.0.0",
+    "babel-plugin-syntax-dynamic-import": "^6.18.0",
+    "babel-plugin-transform-runtime": "^6.23.0",
+    "clean-webpack-plugin": "^2.0.1",
+    "cross-env": "^5.2.0",
+    "html-webpack-plugin": "^3.2.0",
+    "react": "^16.8.5",
+    "react-dom": "^16.8.5",
+    "react-loadable": "^5.5.0",
+    "react-router": "^5.0.0",
+    "react-router-dom": "^5.0.0",
+    "ts-loader": "^5.3.3",
+    "typescript": "^3.3.4000",
+    "webpack": "^4.29.6",
+    "webpack-cli": "^3.3.0",
+    "webpack-dev-server": "^3.2.1"
+  },
+  "dependencies": {
+    "@types/react-loadable": "^5.5.0",
+    "@types/react-router-dom": "^4.3.1",
+    "mobx": "^5.9.0",
+    "mobx-react": "^5.4.3"
+  }
+}
