@@ -11,9 +11,17 @@ export class MyComponnet extends Component {
     return (
       <div>
         <h1>my componentr</h1>
+        <button
+          onClick={() => {
+            this.setState({
+              a: this.state.a + 1,
+            });
+          }}
+        >
+          Add
+        </button>
         <span>{this.state.a.toString()}</span>
         <span>{this.state.b.toString()}</span>
-        {this.children}
       </div>
     );
   }
