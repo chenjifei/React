@@ -1,78 +1,5 @@
 const RENDER_TO_DOM = Symbol("render to dom");
 
-class ElementWrapper {
-  constructor(type) {
-    this.root = document.createElement(type);
-  }
-  setAttribute(name, value) {
-    if (name.match(/^on([\s\S]+)$/)) {
-      this.root.addEventListener(
-        RegExp.$1.replace(/^[\s\S]/, (c) => c.toLowerCase()),
-        value
-      );
-    } else {
-      if (name === "className") {
-        this.root.setAttribute("class", value);
-      } else {
-        this.root.setAttribute(name, value);
-      }
-    }
-  }
-  appendChild(component) {
-    let range = document.createRange();
-    range.setStart(this.root, this.root.childNodes.length);
-    range.setEnd(this.root, this.root.childNodes.length);
-    range.deleteContents();
-    component[RENDER_TO_DOM](range);
-  }
-  [RENDER_TO_DOM](range) {
-    range.deleteContents();
-    range.insertNode(this.root);
-  }
-}
-
-class TextWrapper {
-  constructor(content) {
-    this.root = document.createTextNode(content);
-  }
-  [RENDER_TO_DOM](range) {
-    range.deleteContents();
-    range.insertNode(this.root);
-  }
-}
-const insertChild = (tag, children) => {
-  for (let child of children) {
-    if (typeof child === "string") {
-      child = new TextWrapper(child);
-    }
-    if (child === null) {
-      continue;
-    }
-    if (Array.isArray(child)) {
-      insertChild(tag, child);
-    } else {
-      tag.appendChild(child);
-    }
-  }
-};
-
-function createElement(tagName, attributes, ...children) {
-  let tag;
-  if (typeof tagName === "string") {
-    tag = new ElementWrapper(tagName);
-  } else {
-    tag = new tagName(attributes);
-  }
-
-  for (let attr in attributes) {
-    tag.setAttribute(attr, attributes[attr]);
-  }
-  insertChild(tag, children);
-  return tag;
-}
-
-window.createElement = createElement;
-
 export class Component {
   constructor(type) {
     this.props = Object.create(null);
@@ -85,25 +12,84 @@ export class Component {
   appendChild(component) {
     this.children.push(component);
   }
+  get vdom() {
+    return this.render().vdom;
+  }
   [RENDER_TO_DOM](range) {
     this._range = range;
-    this.render()[RENDER_TO_DOM](range);
+    this._vdom = this.vdom;
+    this._vdom[RENDER_TO_DOM](range);
   }
-  rerender() {
-    let oldRange = this._range;
+  // rerender() {
+  //   let oldRange = this._range;
 
-    let range = document.createRange();
-    range.setStart(oldRange.startContainer, oldRange.startOffset);
-    range.setEnd(oldRange.startContainer, oldRange.startOffset);
-    this[RENDER_TO_DOM](range);
+  //   let range = document.createRange();
+  //   range.setStart(oldRange.startContainer, oldRange.startOffset);
+  //   range.setEnd(oldRange.startContainer, oldRange.startOffset);
+  //   this[RENDER_TO_DOM](range);
 
-    oldRange.setStart(range.endContainer, range.endOffset);
-    oldRange.deleteContents();
+  //   oldRange.setStart(range.endContainer, range.endOffset);
+  //   oldRange.deleteContents();
+  // }
+  update() {
+    let isSameNode = (oldNode, newNode) => {
+      if (oldNode.type !== newNode.type) {
+        return false;
+      }
+      for (let p in newNode.props) {
+        if (newNode.props[p] !== oldNode.props[p]) {
+          return false;
+        }
+      }
+      if (
+        Object.keys(oldNode.props).length !== Object.keys(newNode.props).length
+      ) {
+        return false;
+      }
+      if (newNode.type === "#text") {
+        if (newNode.content !== oldNode.content) {
+          return false;
+        }
+      }
+      return true;
+    };
+    let update = (oldNode, newNode) => {
+      if (!isSameNode(oldNode, newNode)) {
+        newNode[RENDER_TO_DOM](oldNode._range);
+        return;
+      }
+      newNode._range = oldNode._range;
+
+      let newChildren = newNode.vchildren;
+      let oldChildren = oldNode.vchildren;
+      if (!newChildren || !newChildren.length) {
+        return;
+      }
+
+      let tailRange = oldChildren[oldChildren.length - 1]._range;
+
+      for (let i = 0; i < newChildren.length; i++) {
+        let newChild = newChildren[i];
+        let oldChild = oldChildren[i];
+        if (i < oldChildren.length) {
+          update(oldChild, newChild);
+        } else {
+          let insertRange = document.createRange();
+          insertRange.setStart(tailRange.endContainer, tailRange.endOffset);
+          insertRange.setEnd(tailRange.endContainer, tailRange.endOffset);
+          newChild[RENDER_TO_DOM](insertRange);
+          tailRange = insertRange;
+        }
+      }
+    };
+    let vdom = this.vdom;
+    update(this._vdom, vdom);
+    this._vdom = vdom;
   }
   setState(newState) {
     if (this.state === null || typeof this.state !== "object") {
       this.state = newState;
-      this.rerender();
+      this.update();
       return;
     }
     let merge = (oldState, newState) => {
@@ -116,9 +102,137 @@ export class Component {
       }
     };
     merge(this.state, newState);
-    this.rerender();
+    this.update();
   }
 }
+
+class ElementWrapper extends Component {
+  constructor(type) {
+    super(type);
+    this.type = type;
+  }
+  get vdom() {
+    this.vchildren = this.children.map((child) => child.vdom);
+    return this;
+    // return {
+    //   type: this.type,
+    //   props: this.props,
+    //   children: this.children.map((child) => child.vdom),
+    // };
+  }
+  // setAttribute(name, value) {
+  //   if (name.match(/^on([\s\S]+)$/)) {
+  //     this.root.addEventListener(
+  //       RegExp.$1.replace(/^[\s\S]/, (c) => c.toLowerCase()),
+  //       value
+  //     );
+  //   } else {
+  //     if (name === "className") {
+  //       this.root.setAttribute("class", value);
+  //     } else {
+  //       this.root.setAttribute(name, value);
+  //     }
+  //   }
+  // }
+  // appendChild(component) {
+  //   let range = document.createRange();
+  //   range.setStart(this.root, this.root.childNodes.length);
+  //   range.setEnd(this.root, this.root.childNodes.length);
+  //   range.deleteContents();
+  //   component[RENDER_TO_DOM](range);
+  // }
+  [RENDER_TO_DOM](range) {
+    this._range = range;
+    // range.insertNode(this.root);
+    let root = document.createElement(this.type);
+    for (let name in this.props) {
+      let value = this.props[name];
+      if (name.match(/^on([\s\S]+)$/)) {
+        root.addEventListener(
+          RegExp.$1.replace(/^[\s\S]/, (c) => c.toLowerCase()),
+          value
+        );
+      } else {
+        if (name === "className") {
+          root.setAttribute("class", value);
+        } else {
+          root.setAttribute(name, value);
+        }
+      }
+    }
+    if (!this.vchildren) {
+      this.vchildren = this.children.map((child) => child.vdom);
+    }
+    for (let child of this.vchildren) {
+      let childRange = document.createRange();
+      childRange.setStart(root, root.childNodes.length);
+      childRange.setEnd(root, root.childNodes.length);
+      childRange.deleteContents();
+      child[RENDER_TO_DOM](childRange);
+    }
+    replaceContent(range, root);
+  }
+}
+
+class TextWrapper extends Component {
+  constructor(content) {
+    super(content);
+    this.content = content;
+    this.type = "#text";
+  }
+  [RENDER_TO_DOM](range) {
+    this._range = range;
+    let root = document.createTextNode(this.content);
+    replaceContent(range, root);
+  }
+  get vdom() {
+    return this;
+    // return {
+    //   type: "#text",
+    //   content: this.content,
+    // };
+  }
+}
+
+function replaceContent(range, node) {
+  range.insertNode(node);
+  range.setStartAfter(node);
+  range.deleteContents();
+  range.setStartBefore(node);
+  range.setEndAfter(node);
+}
+function createElement(tagName, attributes, ...children) {
+  let tag;
+  if (typeof tagName === "string") {
+    tag = new ElementWrapper(tagName);
+  } else {
+    tag = new tagName();
+  }
+
+  for (let attr in attributes) {
+    tag.setAttribute(attr, attributes[attr]);
+  }
+  const insertChild = (children) => {
+    for (let child of children) {
+      if (typeof child === "string") {
+        child = new TextWrapper(child);
+      }
+      if (child === null) {
+        continue;
+      }
+      if (Array.isArray(child)) {
+        insertChild(child);
+      } else {
+        tag.appendChild(child);
+      }
+    }
+  };
+
+  insertChild(children);
+  return tag;
+}
+
+window.createElement = createElement;
 
 export function render(componet, parentElement) {
   let range = document.createRange();
