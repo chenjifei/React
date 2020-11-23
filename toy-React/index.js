@@ -3,7 +3,6 @@ import { MyComponnet } from "./myComponent";
 class Square extends Component {
   constructor(props) {
     super(props);
-    console.log(props, "----");
   }
   render() {
     return (
@@ -159,3 +158,5 @@ function calculateWinner(squares) {
 // );
 
 render(<Game />, document.body);
+// let game = <Game />;
+// console.log(game.vdom);
